@@ -37,7 +37,7 @@ class CreatePlaylist:
         )
 
         response_json = response.json()
-        return response_json["external_urls"]["spotify"]
+        return response_json["id"]
 
     def currentPlaylist(self, playlist_name):
         query = "https://api.spotify.com/v1/users/{}/playlists?offset=0&limit=50".format(self.user_id)
@@ -56,7 +56,7 @@ class CreatePlaylist:
             if i["name"] == playlist_name:
                 return i["id"]
 
-    def tracks(self, playlist_ID):
+    def tracks(self, playlist_ID, playlist_id_new):
         query = "https://api.spotify.com/v1/playlists/{}/tracks?offset=0&limit=100".format(playlist_ID)
         response = requests.get(
             query,
@@ -68,7 +68,7 @@ class CreatePlaylist:
         ids = ""
         for i in result["items"]:
             ids += i["track"]["id"] + ","
-        self.addItems(ids[:-1])
+        self.addItems(ids[:-1], playlist_id_new)
         offset = 100
         while offset < result["total"]:
             response = requests.get(
@@ -82,9 +82,9 @@ class CreatePlaylist:
                 ids += i["track"]["id"] + ","
 
             offset += 100
-            self.addItems(ids[:-1])
+            self.addItems(ids[:-1], playlist_id_new)
 
-    def addItems(self, ids):
+    def addItems(self, ids, playlist_id_new):
         query = "https://api.spotify.com/v1/audio-features?ids={}".format(ids)
         response = requests.get(
             query,
@@ -93,13 +93,26 @@ class CreatePlaylist:
             }
         )
         result = response.json()
+        uris = []
         for i in result["audio_features"]:
             if i["danceability"] >= 0.65:
-                print(i)
+                uris.append(i["uri"])
+        request_data = json.dumps(uris)
+        query = "https://api.spotify.com/v1/playlists/{}/tracks".format(playlist_id_new)
+        response = requests.post(
+            query,
+            data = request_data,
+            headers={
+                "Authorization": "Bearer {}".format(self.token)
+            }
+        )
+        # check for valid response status
+        if response.status_code != 200:
+            raise ResponseException(response.status_code)
 
 
 
 c = CreatePlaylist()
-# link = c.createPlaylist(input("Playlist Name = "), input("PLaylist Description = "))
+playlist_id_new = c.createPlaylist(input("Playlist Name = "), input("PLaylist Description = "))
 Playlist_ID = c.currentPlaylist("Reynadess' Music")
-c.tracks(playlist_ID=Playlist_ID)
+c.tracks(Playlist_ID, playlist_id_new)
