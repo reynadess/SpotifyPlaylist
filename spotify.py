@@ -14,7 +14,7 @@ class CreatePlaylist:
         self.instrumentalness = None
         self.ids = None
 
-    def parameters(self, acc = None, dance = None, instrument = None):
+    def parameters(self, acc, dance, instrument):
         self.accousticness = acc
         self.danceability = dance
         self.instrumentalness = instrument
@@ -35,7 +35,8 @@ class CreatePlaylist:
                 "Authorization": "Bearer {}".format(self.token)
             }
         )
-
+        if response.status_code == 400:
+            raise ResponseException(response.status_code, message = response.text)
         response_json = response.json()
         return response_json["id"]
 
@@ -49,12 +50,15 @@ class CreatePlaylist:
         )
         result = response.json()
 
-        if response.status_code != 200:
+        if response.status_code == 400:
             raise ResponseException(response.status_code, message = response.text)
 
         for i in result["items"]:
             if i["name"] == playlist_name:
                 return i["id"]
+
+        print("Playlist Not Found!")
+        return None
 
     def tracks(self, playlist_ID, playlist_id_new):
         query = "https://api.spotify.com/v1/playlists/{}/tracks?offset=0&limit=100".format(playlist_ID)
@@ -78,6 +82,9 @@ class CreatePlaylist:
                 }
             )
             result = response.json()
+            if response.status_code == 400:
+                raise ResponseException(response.status_code, message=response.text)
+            ids = ""
             for i in result["items"]:
                 ids += i["track"]["id"] + ","
 
@@ -93,26 +100,30 @@ class CreatePlaylist:
             }
         )
         result = response.json()
+        if response.status_code == 400:
+            raise ResponseException(response.status_code)
         uris = []
         for i in result["audio_features"]:
-            if i["danceability"] >= 0.65:
+            if i["danceability"] >= self.danceability and i["acousticness"] >= self.accousticness and i["instrumentalness"] >= self.instrumentalness:
                 uris.append(i["uri"])
         request_data = json.dumps(uris)
         query = "https://api.spotify.com/v1/playlists/{}/tracks".format(playlist_id_new)
         response = requests.post(
             query,
-            data = request_data,
+            data=request_data,
             headers={
                 "Authorization": "Bearer {}".format(self.token)
             }
         )
         # check for valid response status
-        if response.status_code != 200:
+        if response.status_code == 400:
             raise ResponseException(response.status_code)
 
 
 
 c = CreatePlaylist()
-playlist_id_new = c.createPlaylist(input("Playlist Name = "), input("PLaylist Description = "))
-Playlist_ID = c.currentPlaylist("Reynadess' Music")
-c.tracks(Playlist_ID, playlist_id_new)
+playlist_id_new = c.createPlaylist(input("New Playlist Name = "), input("PLaylist Description = "))
+Playlist_ID = c.currentPlaylist(input("Playlist Name = "))
+if Playlist_ID != None:
+    c.parameters(float(input("accoustics 0 - 1.0 = ")), float(input("danceable 0 - 1.0 = ")), float(input("instrumental 0 - 1.0 = ")))
+    c.tracks(Playlist_ID, playlist_id_new)
