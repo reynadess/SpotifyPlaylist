@@ -1,8 +1,8 @@
 import json
-from secrets import spotify_user_id
-from secrets import spotify_token
+from SpotifyPlaylistGenerator.secrets import spotify_user_id
+from SpotifyPlaylistGenerator.secrets import spotify_token
 import requests
-from exceptions import ResponseException
+from SpotifyPlaylistGenerator.exceptions import ResponseException
 
 
 class CreatePlaylist:
